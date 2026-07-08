@@ -7,15 +7,17 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/lib/error_handler.php';
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/lib/CourseRepository.php';
+require_once __DIR__ . '/lib/StudentRepository.php';
 
-// เก็บ log ผ่าน error_log() แทนการเขียนไฟล์ (บน Render โฟลเดอร์นี้อาจไม่มีสิทธิ์เขียนไฟล์ใหม่)
-// error_log() จะไปโผล่ใน Render Logs ให้เห็นได้เลย
 function jf_log($message) {
     error_log('[jotform_webhook] ' . $message);
 }
 
 try {
-    $pdo = getDB();
+    $pdo         = getDB();
+    $courseRepo  = new CourseRepository($pdo);
+    $studentRepo = new StudentRepository($pdo);
 
     // JotForm ส่งข้อมูล field จริงมาใน field ชื่อ rawRequest (multipart/form-data หรือ x-www-form-urlencoded)
     $rawRequestJson = $_POST['rawRequest'] ?? '{}';
@@ -48,45 +50,29 @@ try {
     }
 
     // หา course_id จากชื่อคอร์สที่เลือกใน dropdown
-    $course_id = null;
-    if ($courseName !== '') {
-        $stmt = $pdo->prepare("SELECT id FROM courses WHERE short_name = :name LIMIT 1");
-        $stmt->execute([':name' => $courseName]);
-        $courseRow = $stmt->fetch();
-        if ($courseRow) {
-            $course_id = (int)$courseRow['id'];
-        }
-    }
+    $course = $courseName !== '' ? $courseRepo->findByShortName($courseName) : null;
 
-    if ($course_id === null) {
+    if (!$course) {
         // course_id เป็น NOT NULL ในตาราง students ถ้าหาไม่เจอต้องหยุดตรงนี้ ห้าม insert ต่อ
         jf_log("ERROR: ไม่พบคอร์สชื่อ '$courseName' ในระบบ - raw: " . $rawRequestJson);
         echo json_encode(['ok' => false, 'error' => "ไม่พบคอร์สชื่อ '$courseName' ในระบบ กรุณาตรวจสอบว่าตั้งชื่อคอร์สใน dropdown ตรงกับ short_name ในตาราง courses"]);
         exit;
     }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO students
-            (course_id, first_name, last_name, member_type, apply_date, department, office, position, phone_mobile, email)
-        VALUES
-            (:course_id, :first_name, :last_name, :member_type, :apply_date, :department, :office, :position, :phone_mobile, :email)
-        RETURNING id
-    ");
-    $stmt->execute([
-        ':course_id'    => $course_id,
-        ':first_name'   => $first_name,
-        ':last_name'    => $last_name ?: null,
-        ':member_type'  => $member_type ?: null,
-        ':apply_date'   => $apply_date,
-        ':department'   => $department ?: null,
-        ':office'       => $office ?: null,
-        ':position'     => $position ?: null,
-        ':phone_mobile' => $phone_mobile ?: null,
-        ':email'        => $email ?: null,
+    $newId = $studentRepo->insertFromWebhook([
+        'course_id'    => (int)$course['id'],
+        'first_name'   => $first_name,
+        'last_name'    => $last_name,
+        'member_type'  => $member_type,
+        'apply_date'   => $apply_date,
+        'department'   => $department,
+        'office'       => $office,
+        'position'     => $position,
+        'phone_mobile' => $phone_mobile,
+        'email'        => $email,
     ]);
 
-    $newId = (int)$stmt->fetchColumn();
-    jf_log("OK: เพิ่มผู้สมัคร '$first_name $last_name' (id=$newId, course='$courseName', course_id=" . var_export($course_id, true) . ")");
+    jf_log("OK: เพิ่มผู้สมัคร '$first_name $last_name' (id=$newId, course='$courseName', course_id={$course['id']})");
 
     echo json_encode(['ok' => true, 'id' => $newId]);
 } catch (Throwable $e) {

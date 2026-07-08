@@ -1,28 +1,16 @@
 <?php
 // backend/api.php
 // Endpoint สาธารณะ (ไม่ต้อง login) — ใช้โดยหน้าดาวน์โหลดใบประกาศ
-// ดึงรายชื่อผู้เรียนทั้งหมดพร้อมข้อมูลคอร์ส จัดรูปแบบคล้าย Airtable เดิม
 
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/lib/error_handler.php';
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/lib/StudentRepository.php';
 
 try {
-    $pdo = getDB();
-
-    $rows = $pdo->query("
-        SELECT
-            s.id AS student_id, s.airtable_id,
-            s.first_name, s.last_name, s.member_type, s.apply_date,
-            s.birth_date, s.age, s.royal_title, s.education_level,
-            s.faculty, s.major, s.institution, s.department, s.office,
-            s.position, s.phone_internal, s.phone_mobile, s.email,
-            s.head_status, s.attendance, s.last_modified_time,
-            c.short_name AS course_name, c.training_date, c.year_be, c.verify_url
-        FROM students s
-        INNER JOIN courses c ON c.id = s.course_id
-        ORDER BY c.year_be DESC, c.short_name ASC, s.first_name ASC
-    ")->fetchAll();
+    $pdo         = getDB();
+    $studentRepo = new StudentRepository($pdo);
+    $rows        = $studentRepo->listAllWithCourse();
 
     $records = [];
     foreach ($rows as $row) {
