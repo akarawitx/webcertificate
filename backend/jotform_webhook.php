@@ -5,6 +5,7 @@
 
 header('Content-Type: application/json; charset=utf-8');
 
+require_once __DIR__ . '/lib/error_handler.php';
 require_once __DIR__ . '/../database/config.php';
 
 // เก็บ log ผ่าน error_log() แทนการเขียนไฟล์ (บน Render โฟลเดอร์นี้อาจไม่มีสิทธิ์เขียนไฟล์ใหม่)
@@ -89,7 +90,5 @@ try {
 
     echo json_encode(['ok' => true, 'id' => $newId]);
 } catch (Throwable $e) {
-    jf_log('EXCEPTION: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    send_error_response($e, 'ไม่สามารถบันทึกข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้งหรือติดต่อผู้ดูแลระบบ');
 }
