@@ -40,7 +40,7 @@
 
 ## สถาปัตยกรรมระบบ (System Architecture)
 
-![System Architecture Diagram](/assets/docs/architecture-diagram.png)
+![System Architecture Diagram](assets/docs/architecture-diagram.png)
 
 จุดสำคัญของสถาปัตยกรรมนี้คือ **แยกตามทิศทางการเชื่อมต่อ**: ส่วนไหนต้อง "รับ" การเชื่อมต่อจากภายนอกอินเทอร์เน็ต (ต้องมี public URL) กับส่วนไหนแค่ "เชื่อมต่อออกไปหา" บริการอื่น (รันจากที่ไหนก็ได้)
 
