@@ -333,23 +333,6 @@ Endpoint สำหรับหน้า "เปิดรับสมัคร" (
 ### Render แผนฟรี "หลับ" หลัง idle 15 นาที
 เมื่อไม่มีคนเข้าใช้ 15 นาที Render จะปิด container ชั่วคราว คนแรกที่กลับมาเข้าเว็บต้องรอ ~30-50 วินาทีให้ container ตื่น **วิธีแก้ที่ใช้อยู่:** ตั้ง **UptimeRobot** ปิง `https://webcertificate.onrender.com/` ทุก 5 นาที ทำให้เว็บไม่เคย idle ครบ 15 นาที
 
-### Admin session หลุดบ่อย
-เกิดจากเหตุผลเดียวกับข้างบน — container restart ทำให้ไฟล์ session หายไปด้วย ตอนนี้ที่ไม่ค่อย sleep แล้วปัญหานี้ควรเกิดน้อยลงมาก
-
----
-
-## ปัญหาที่เคยเจอ และวิธีแก้ (Troubleshooting Log)
-
-| ปัญหา | สาเหตุ | วิธีแก้ |
-|---|---|---|
-| `Unexpected token '<', "..." is not valid JSON` ตอนเปิดเว็บครั้งแรกบน Render | `.gitignore` กัน `database/config.php` ไว้ ทำให้ไฟล์ config ไม่ถูก push ขึ้น GitHub → `require_once` หาไฟล์ไม่เจอ → PHP โยน Fatal Error เป็นหน้า HTML แทน JSON | ลบบรรทัด `database/config.php` ออกจาก `.gitignore` (ก่อนจะย้ายไปใช้ environment variables ในภายหลัง) |
-| `❌ Unauthorized` หลัง deploy โค้ดใหม่ทั้งที่เพิ่ง login | Container restart ตอน deploy ทำให้ PHP session หายไปหมด | Login ใหม่อีกครั้ง |
-| `POST /backend/jotform_webhook.php` ได้ 500 ทุกครั้งที่ JotForm ยิงมาจริง | `SQLSTATE[23505]: Unique violation ... duplicate key value violates unique constraint "students_pkey"` — ตอนย้ายข้อมูลจาก Supabase มา Neon โดย insert พร้อม id เดิม แต่ไม่ได้อัปเดต sequence ให้ตรงกับข้อมูลจริง | รัน SQL รีเซ็ต sequence ให้ตรงกับ `MAX(id)` ปัจจุบันของตาราง (`SELECT setval(pg_get_serial_sequence('students','id'), (SELECT MAX(id) FROM students))`) |
-| เขียน log ไฟล์ไม่ได้ ขึ้น 404 ตลอด | โฟลเดอร์ `backend/` บน Render ไม่มีสิทธิ์เขียนไฟล์ใหม่ให้ PHP process | เปลี่ยนมาใช้ `error_log()` แทนการเขียนไฟล์ — log จะไปโผล่ที่ Render → Logs โดยตรง |
-| เว็บดับ/โหลดช้ามากเป็นระยะ | พฤติกรรมปกติของ Render แผนฟรี (spin down เมื่อ idle เกิน 15 นาที) | ตั้ง UptimeRobot ปิงทุก 5 นาที |
-| Database error ชั่วคราวทั้งที่โค้ดไม่ได้แก้อะไร | Neon เกิด incident ฝั่ง infrastructure เอง (เช็คได้ที่ [neonstatus.com](https://neonstatus.com)) | รอ Neon แก้ปัญหาฝั่งเขาเสร็จ ไม่ใช่ปัญหาฝั่งโค้ด |
-| `Uncaught SyntaxError: Identifier 'CERT_BG' has already been declared` หลังแยก JS ออกเป็นไฟล์ | ไฟล์ `auth.js` ถูกวางเนื้อหาผิด (มีเนื้อหาปนกับ `certificate.js`) ทำให้ทั้งไฟล์พังตั้งแต่บรรทัดแรก ฟังก์ชัน login ทั้งหมดเลยไม่ถูกสร้างขึ้น | ตรวจสอบเนื้อหาไฟล์ `auth.js` ให้ตรงกับต้นฉบับ ไม่มีโค้ดของไฟล์อื่นปนอยู่ |
-
 ---
 
 ## ประวัติการพัฒนา
