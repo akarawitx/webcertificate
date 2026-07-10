@@ -70,13 +70,26 @@ Database (Neon PostgreSQL)
 - **`backend/lib/require_admin.php`** — middleware เช็คสิทธิ์ admin กลาง ใช้ที่เดียวไม่ต้องเขียนซ้ำทุกไฟล์
 - **`backend/lib/error_handler.php`** — จัดการ error กลาง log รายละเอียดจริงไว้ฝั่ง server เท่านั้น ส่งข้อความทั่วไปกลับไปหา client (ไม่เผยรายละเอียด database ให้ผู้ไม่หวังดี)
 
+### สถาปัตยกรรมภายในฝั่ง Frontend
+
+`index.html` เหลือแค่ markup ล้วน ๆ ไม่มี CSS/JavaScript ฝังอยู่ในไฟล์แล้ว โดยแยกออกเป็น:
+
+```
+index.html (markup เท่านั้น)
+   ├── assets/css/style.css        สไตล์ทั้งหมดของเว็บ
+   └── assets/js/
+         ├── certificate.js        หน้าดาวน์โหลดใบประกาศ (โหลดข้อมูล, dropdown, พรีวิว, ดาวน์โหลด PNG)
+         ├── auth.js                ระบบ login/logout admin
+         └── admin.js                ตรรกะหน้า Admin Panel ทั้งหมด (ตารางคอร์ส, ตารางผู้เรียน, เปิดรับสมัคร)
+```
+
 ---
 
 ## เทคโนโลยีที่ใช้
 
 | ส่วน | เทคโนโลยี | หน้าที่ |
 |---|---|---|
-| **Frontend** | HTML + CSS + Vanilla JavaScript (ไฟล์เดียว `index.html`) | หน้าดาวน์โหลดใบประกาศ + หน้า Admin Panel |
+| **Frontend** | HTML + CSS + Vanilla JavaScript (แยกไฟล์ตาม responsibility) | หน้าดาวน์โหลดใบประกาศ + หน้า Admin Panel |
 | **สร้างภาพใบประกาศ** | [html2canvas](https://html2canvas.hertzen.com/) | แปลง HTML เป็นไฟล์ภาพ PNG ให้ดาวน์โหลด |
 | **QR Code** | [qrcodejs](https://github.com/davidshimjs/qrcodejs) | สร้าง QR Code บนใบประกาศ |
 | **Backend** | PHP 8.2 (ไม่ใช้ framework, ใช้ PDO ตรง ๆ) | ประมวลผล API ทั้งหมด แบ่งเป็น Controller + Repository layer |
@@ -96,29 +109,37 @@ webcertificate/
 │   Dockerfile
 │   index.html
 │   README.md
-│   
+│
 ├───assets
+│   ├───css
+│   │       style.css
+│   │
 │   ├───docs
 │   │       architecture-diagram.png
-│   │       
-│   └───images
-│           line-qr.png
-│           logo.png
-│           main1.png
-│           
+│   │
+│   ├───images
+│   │       line-qr.png
+│   │       logo.png
+│   │       main1.png
+│   │
+│   └───js
+│           admin.js
+│           auth.js
+│           certificate.js
+│
 ├───backend
 │   │   active_courses.php
 │   │   admin_api.php
 │   │   api.php
 │   │   auth.php
 │   │   jotform_webhook.php
-│   │   
+│   │
 │   └───lib
 │           CourseRepository.php
 │           error_handler.php
 │           require_admin.php
 │           StudentRepository.php
-│           
+│
 └───database
         config.php
         schema.sql
@@ -129,7 +150,22 @@ webcertificate/
 ตั้งค่า container ที่ Render ใช้รันเว็บ: ใช้ image ตั้งต้น `php:8.2-apache`, ติดตั้ง `pdo_pgsql` extension (จำเป็นสำหรับต่อ Neon), คัดลอกโค้ดเข้า `/var/www/html/`, ตั้งให้ Apache ฟัง port ที่ Render กำหนดผ่าน environment variable `PORT`
 
 ### `index.html`
-ไฟล์เดียวที่รวมทั้งหน้า UI ทั้งหมด แบ่งเป็น 2 ส่วนหลักที่สลับกันด้วยแท็บ: หน้าดาวน์โหลดใบประกาศ (public) และหน้า Admin Panel (ต้อง login)
+Markup ล้วน ๆ ของหน้าเว็บทั้งหมด แบ่งเป็น 2 ส่วนหลักที่สลับกันด้วยแท็บ: หน้าดาวน์โหลดใบประกาศ (public) และหน้า Admin Panel (ต้อง login) ไม่มี CSS/JavaScript ฝังอยู่ในไฟล์นี้เลย เชื่อมโยงไปยังไฟล์แยกในโฟลเดอร์ `assets/`
+
+### `assets/css/style.css`
+สไตล์ทั้งหมดของเว็บ (สี, layout, responsive, animation) แยกออกจาก `index.html` เพื่อให้แก้ไขและอ่านง่ายขึ้น
+
+### `assets/js/certificate.js`
+ตรรกะหน้าดาวน์โหลดใบประกาศ: โหลดรายชื่อจาก `api.php`, สร้าง dropdown เลือกปี/หลักสูตร/ชื่อ, อัปเดตพรีวิวใบประกาศแบบ real-time, สร้าง QR Code, และแปลงใบประกาศเป็นไฟล์ PNG ผ่าน html2canvas
+
+### `assets/js/auth.js`
+ระบบ login/logout admin ฝั่ง frontend: เปิด/ปิด modal login, เรียก `backend/auth.php`, เก็บสถานะ session ไว้ใน `sessionStorage`, และแสดง/ซ่อนแท็บ admin ตามสถานะ
+
+### `assets/js/admin.js`
+ตรรกะหน้า Admin Panel ทั้งหมด: สลับแท็บ, ตารางคอร์ส (ค้นหา/กรอง/เรียงลำดับ), ตารางรายชื่อผู้เรียน (ค้นหา/กรอง/เรียงลำดับ/แบ่งหน้า), modal เพิ่ม/แก้ไขข้อมูล, และหน้าเปิดรับสมัคร + ปุ่ม Sync to JotForm
+
+### `assets/docs/architecture-diagram.png`
+แผนภาพสถาปัตยกรรมระบบ ใช้แสดงในหัวข้อ System Architecture ของ README นี้
 
 ### `backend/lib/require_admin.php`
 Middleware กลาง — เริ่ม session, ตั้ง response header เป็น JSON, เช็คว่า login เป็น admin อยู่ไหม ถ้าไม่ใช่ตอบ 403 ทันที ทุกไฟล์ endpoint ที่ต้องการสิทธิ์ admin (`admin_api.php`, `active_courses.php`) เรียกใช้ไฟล์นี้แค่บรรทัดเดียวแทนเขียนโค้ดเช็คซ้ำ
@@ -209,8 +245,9 @@ Endpoint สำหรับหน้า "เปิดรับสมัคร" (
 
 ### 1. ผู้เข้าอบรมดาวน์โหลดใบประกาศ
 ```
-เปิดเว็บ → api.php → StudentRepository::listAllWithCourse() → เลือกปี/คอร์ส/ชื่อ (กรองฝั่ง frontend)
-        → พรีวิวใบประกาศ real-time → กด "ดาวน์โหลด" → html2canvas แปลงเป็น PNG
+เปิดเว็บ → certificate.js เรียก api.php → StudentRepository::listAllWithCourse()
+        → เลือกปี/คอร์ส/ชื่อ (กรองฝั่ง frontend) → พรีวิวใบประกาศ real-time
+        → กด "ดาวน์โหลด" → html2canvas แปลงเป็น PNG
 ```
 
 ### 2. ผู้สมัครใหม่กรอกฟอร์ม JotForm
@@ -225,7 +262,8 @@ Endpoint สำหรับหน้า "เปิดรับสมัคร" (
 
 ### 3. Admin เปิด/ปิดคอร์สแล้ว Sync ไปยัง JotForm
 ```
-[Admin] ติ๊กเปิด/ปิดคอร์ส → active_courses.php?action=toggle → CourseRepository::activate()/deactivate()
+[Admin] ติ๊กเปิด/ปิดคอร์ส → admin.js เรียก active_courses.php?action=toggle
+        → CourseRepository::activate()/deactivate()
 [Admin] กด "Sync to JotForm" → active_courses.php?action=sync_jotform
         → CourseRepository::listActiveShortNames()
         → รวมชื่อคอร์สด้วย '|' → เรียก JotForm API (POST /form/{id}/question/{field})
@@ -310,15 +348,14 @@ Endpoint สำหรับหน้า "เปิดรับสมัคร" (
 | เขียน log ไฟล์ไม่ได้ ขึ้น 404 ตลอด | โฟลเดอร์ `backend/` บน Render ไม่มีสิทธิ์เขียนไฟล์ใหม่ให้ PHP process | เปลี่ยนมาใช้ `error_log()` แทนการเขียนไฟล์ — log จะไปโผล่ที่ Render → Logs โดยตรง |
 | เว็บดับ/โหลดช้ามากเป็นระยะ | พฤติกรรมปกติของ Render แผนฟรี (spin down เมื่อ idle เกิน 15 นาที) | ตั้ง UptimeRobot ปิงทุก 5 นาที |
 | Database error ชั่วคราวทั้งที่โค้ดไม่ได้แก้อะไร | Neon เกิด incident ฝั่ง infrastructure เอง (เช็คได้ที่ [neonstatus.com](https://neonstatus.com)) | รอ Neon แก้ปัญหาฝั่งเขาเสร็จ ไม่ใช่ปัญหาฝั่งโค้ด |
+| `Uncaught SyntaxError: Identifier 'CERT_BG' has already been declared` หลังแยก JS ออกเป็นไฟล์ | ไฟล์ `auth.js` ถูกวางเนื้อหาผิด (มีเนื้อหาปนกับ `certificate.js`) ทำให้ทั้งไฟล์พังตั้งแต่บรรทัดแรก ฟังก์ชัน login ทั้งหมดเลยไม่ถูกสร้างขึ้น | ตรวจสอบเนื้อหาไฟล์ `auth.js` ให้ตรงกับต้นฉบับ ไม่มีโค้ดของไฟล์อื่นปนอยู่ |
 
 ---
 
 ## ประวัติการพัฒนา
 
-ระบบเดิมใช้ **Supabase (PostgreSQL)** ร่วมกับ **Google Apps Script** เป็นตัวกลางเชื่อมระหว่าง JotForm กับฐานข้อมูล ต่อมาได้ย้ายฐานข้อมูลทั้งหมดมาที่ **Neon** และตัดการพึ่งพา Google Apps Script ออก โดยให้ JotForm ยิง Webhook มาที่ PHP backend ของระบบเองโดยตรง
+ระบบเดิมของศูนย์อบรมคอมพิวเตอร์ยังไม่มีระบบออกใบประกาศนียบัตรออนไลน์ให้ผู้เข้าอบรมเลย ส่วนการรับสมัครทำได้แค่ให้ผู้สมัครกรอกฟอร์มผ่านลิงก์ **JotForm** แล้วข้อมูลจะถูกบันทึกเก็บไว้ใน **Airtable** เพียงเท่านั้น ไม่มีระบบจัดการหลักสูตร ไม่มีระบบดึงรายชื่อมาออกใบประกาศ และไม่มี Admin Panel ใด ๆ
 
-หลังจากนั้นได้ปรับปรุงคุณภาพโค้ดเพิ่มอีก 2 รอบ:
-- **ย้าย credential ทั้งหมด** (database password, JotForm API key, admin password) ออกจากโค้ด ไปเป็น **Environment Variables** พร้อมล้าง git history เก่าที่เคยมี credential ฝังอยู่
-- **Refactor โครงสร้าง backend** แยกเป็น Controller + Repository layer, สร้าง middleware กลางสำหรับเช็คสิทธิ์ admin, และทำ error handler กลางที่ไม่เปิดเผยรายละเอียด database ให้ client เห็น
+โปรเจกต์นี้จึงถูกสร้างขึ้นมาใหม่ทั้งหมด เพื่อให้ผู้เข้าอบรมสามารถดึงรายชื่อคอร์สต่าง ๆ และรายชื่อของตัวเองมา **ออกใบประกาศนียบัตรออนไลน์ได้ด้วยตัวเอง** พร้อมทั้งยังคงให้สมัครผ่านฟอร์ม JotForm ได้เหมือนเดิม แต่เปลี่ยนปลายทางการจัดเก็บข้อมูลจาก Airtable มาเป็น **Neon (PostgreSQL)** แทน โดยให้ JotForm ยิง Webhook มาที่ PHP backend ของระบบโดยตรงเมื่อมีคนสมัครเรียนใหม่ ทำให้ข้อมูลเข้าสู่ระบบอัตโนมัติโดยไม่ต้องมีใครมาคอยกรอกซ้ำ
 
 ส่วนปัญหาเว็บ "หลับ" ของ hosting แผนฟรีก็แก้ด้วย UptimeRobot ทำให้ใช้งานได้ต่อเนื่องโดยไม่ต้องเสียค่าใช้จ่ายเพิ่ม
