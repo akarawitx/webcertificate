@@ -34,7 +34,7 @@ const AIRTABLE_FIELD_MAP = [
     'การเข้าอบรม'          => 'attendance',
     'Last modified time'   => 'last_modified_time',
 ];
-const AIRTABLE_COURSE_FIELD = 'ชื่อโปรแกรม'; // field ที่ใช้จับคู่กับ courses.short_name
+const AIRTABLE_COURSE_FIELD = 'โปรแกรมที่สมัคร'; // field ที่ใช้จับคู่กับ courses.long_key
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
